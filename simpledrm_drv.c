@@ -24,42 +24,10 @@
 
 #include "simpledrm.h"
 
-static const struct file_operations sdrm_drm_fops = {
-	.owner = THIS_MODULE,
-	.open = drm_open,
-	.mmap = sdrm_drm_mmap,
-	.poll = drm_poll,
-	.read = drm_read,
-	.unlocked_ioctl = drm_ioctl,
-	.release = drm_release,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl = drm_compat_ioctl,
-#endif
-	.llseek = noop_llseek,
-};
+void sdrm_hw_fini(struct drm_device *dev);
+int sdrm_hw_init(struct drm_device *dev, uint32_t flags);
 
-static struct drm_driver sdrm_drm_driver = {
-	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME |
-			   DRIVER_ATOMIC,
-	.fops = &sdrm_drm_fops,
-	.lastclose = sdrm_lastclose,
-
-	.gem_free_object = sdrm_gem_free_object,
-	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
-	.gem_prime_import = sdrm_gem_prime_import,
-
-	.dumb_create = sdrm_dumb_create,
-	.dumb_map_offset = sdrm_dumb_map_offset,
-	.dumb_destroy = sdrm_dumb_destroy,
-
-	.name = "simpledrm",
-	.desc = "Simple firmware framebuffer DRM driver",
-	.date = "20130601",
-	.major = 0,
-	.minor = 0,
-	.patchlevel = 1,
-};
-
+#if 0
 #if defined CONFIG_OF && defined CONFIG_COMMON_CLK
 /*
  * Clock handling code.
@@ -409,26 +377,22 @@ void sdrm_pdev_destroy(struct sdrm_device *sdrm)
 		sdrm->fb_map = NULL;
 	}
 }
+#endif
 
-static int sdrm_simplefb_probe(struct platform_device *pdev)
+static int sdrm_simplefb_load(struct drm_device *ddev, unsigned long flags)
 {
 	struct sdrm_device *sdrm;
-	struct drm_device *ddev;
 	int ret;
-
-	ddev = drm_dev_alloc(&sdrm_drm_driver, &pdev->dev);
-	if (!ddev)
-		return -ENOMEM;
 
 	sdrm = kzalloc(sizeof(*sdrm), GFP_KERNEL);
 	if (!sdrm)
 		goto err_free;
 
-	ddev->platformdev = pdev;
 	ddev->dev_private = sdrm;
 	sdrm->ddev = ddev;
 
-	ret = sdrm_pdev_init(sdrm);
+	ret = sdrm_hw_init(ddev, flags);
+//	ret = sdrm_pdev_init(sdrm);
 	if (ret)
 		goto err_free;
 
@@ -436,18 +400,18 @@ static int sdrm_simplefb_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_destroy;
 
-	ret = sdrm_clocks_init(sdrm, pdev);
-	if (ret < 0)
-		goto err_cleanup;
+//	ret = sdrm_clocks_init(sdrm, pdev);
+//	if (ret < 0)
+//		goto err_cleanup;
+//
+//	ret = sdrm_regulators_init(sdrm, pdev);
+//	if (ret < 0)
+//		goto err_clocks;
 
-	ret = sdrm_regulators_init(sdrm, pdev);
-	if (ret < 0)
-		goto err_clocks;
-
-	platform_set_drvdata(pdev, ddev);
-	ret = drm_dev_register(ddev, 0);
-	if (ret)
-		goto err_regulators;
+	//platform_set_drvdata(pdev, ddev);
+	//ret = drm_dev_register(ddev, 0);
+	//if (ret)
+	//	goto err_regulators;
 
 	sdrm_fbdev_init(ddev->dev_private);
 
@@ -456,14 +420,14 @@ static int sdrm_simplefb_probe(struct platform_device *pdev)
 
 	return 0;
 
-err_regulators:
-	sdrm_regulators_destroy(sdrm);
-err_clocks:
-	sdrm_clocks_destroy(sdrm);
-err_cleanup:
-	drm_mode_config_cleanup(ddev);
+//err_regulators:
+//	sdrm_regulators_destroy(sdrm);
+//err_clocks:
+//	sdrm_clocks_destroy(sdrm);
+//err_cleanup:
+//	drm_mode_config_cleanup(ddev);
 err_destroy:
-	sdrm_pdev_destroy(sdrm);
+	sdrm_hw_fini(ddev);
 err_free:
 	drm_dev_unref(ddev);
 	kfree(sdrm);
@@ -471,9 +435,8 @@ err_free:
 	return ret;
 }
 
-static int sdrm_simplefb_remove(struct platform_device *pdev)
+static int sdrm_simplefb_unload(struct drm_device *ddev)
 {
-	struct drm_device *ddev = platform_get_drvdata(pdev);
 	struct sdrm_device *sdrm = ddev->dev_private;
 
 	sdrm_fbdev_cleanup(sdrm);
@@ -482,11 +445,11 @@ static int sdrm_simplefb_remove(struct platform_device *pdev)
 
 	/* protect fb_map removal against sdrm_blit() */
 	drm_modeset_lock_all(ddev);
-	sdrm_pdev_destroy(sdrm);
+	sdrm_hw_fini(ddev);
 	drm_modeset_unlock_all(ddev);
 
-	sdrm_regulators_destroy(sdrm);
-	sdrm_clocks_destroy(sdrm);
+//	sdrm_regulators_destroy(sdrm);
+//	sdrm_clocks_destroy(sdrm);
 
 	drm_dev_unref(ddev);
 	kfree(sdrm);
@@ -494,49 +457,162 @@ static int sdrm_simplefb_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id simplefb_of_match[] = {
-	{ .compatible = "simple-framebuffer", },
-	{ },
+static const struct file_operations sdrm_drm_fops = {
+	.owner = THIS_MODULE,
+	.open = drm_open,
+	.mmap = sdrm_drm_mmap,
+	.poll = drm_poll,
+	.read = drm_read,
+	.unlocked_ioctl = drm_ioctl,
+	.release = drm_release,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = drm_compat_ioctl,
+#endif
+	.llseek = noop_llseek,
 };
-MODULE_DEVICE_TABLE(of, simplefb_of_match);
 
-static struct platform_driver sdrm_simplefb_driver = {
-	.probe = sdrm_simplefb_probe,
-	.remove = sdrm_simplefb_remove,
-	.driver = {
-		.name = "simple-framebuffer",
-		.mod_name = KBUILD_MODNAME,
-		.owner = THIS_MODULE,
-		.of_match_table = simplefb_of_match,
+static struct drm_driver sdrm_drm_driver = {
+	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME |
+			   DRIVER_ATOMIC,
+	.fops = &sdrm_drm_fops,
+	.lastclose = sdrm_lastclose,
+
+	.gem_free_object = sdrm_gem_free_object,
+	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
+	.gem_prime_import = sdrm_gem_prime_import,
+
+	.dumb_create = sdrm_dumb_create,
+	.dumb_map_offset = sdrm_dumb_map_offset,
+	.dumb_destroy = sdrm_dumb_destroy,
+
+	.name = "simpledrm",
+	.desc = "Simple firmware framebuffer DRM driver",
+	.date = "20130601",
+	.major = 0,
+	.minor = 0,
+	.patchlevel = 1,
+
+	.load = sdrm_simplefb_load,
+	.unload = sdrm_simplefb_unload,
+};
+
+/* ---------------------------------------------------------------------- */
+/* pm interface                                                           */
+
+#ifdef CONFIG_PM_SLEEP
+static int netv_pm_suspend(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	struct sdrm_device *netv = drm_dev->dev_private;
+
+/*
+	drm_kms_helper_poll_disable(drm_dev);
+
+	if (netv->fb.initialized) {
+		console_lock();
+		drm_fb_helper_set_suspend(&netv->fb.helper, 1);
+		console_unlock();
+	}
+*/
+
+	return 0;
+}
+
+static int netv_pm_resume(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	struct sdrm_device *netv = drm_dev->dev_private;
+
+/*
+	drm_helper_resume_force_mode(drm_dev);
+
+	if (netv->fb.initialized) {
+		console_lock();
+		drm_fb_helper_set_suspend(&netv->fb.helper, 0);
+		console_unlock();
+	}
+
+	drm_kms_helper_poll_enable(drm_dev);
+*/
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops netv_pm_ops = {
+        SET_SYSTEM_SLEEP_PM_OPS(netv_pm_suspend,
+                                netv_pm_resume)
+};
+
+/* ---------------------------------------------------------------------- */
+/* pci interface                                                          */
+
+static int netv_kick_out_firmware_fb(struct pci_dev *pdev)
+{
+        struct apertures_struct *ap;
+
+        ap = alloc_apertures(1);
+        if (!ap)
+                return -ENOMEM;
+
+        ap->ranges[0].base = pci_resource_start(pdev, 0);
+        ap->ranges[0].size = pci_resource_len(pdev, 0);
+        remove_conflicting_framebuffers(ap, "netvdrmfb", false);
+        kfree(ap);
+
+        return 0;
+}
+
+static int netv_pci_probe(struct pci_dev *pdev,
+                           const struct pci_device_id *ent)
+{
+	int ret;
+
+	ret = netv_kick_out_firmware_fb(pdev);
+	if (ret)
+		return ret;
+
+	return drm_get_pci_dev(pdev, ent, &sdrm_drm_driver);
+}
+
+static void netv_pci_remove(struct pci_dev *pdev)
+{
+	struct drm_device *dev = pci_get_drvdata(pdev);
+
+	drm_put_dev(dev);
+}
+
+static const struct pci_device_id netv_pci_tbl[] = {
+	{
+		.vendor      = 0x10ee,
+		.device      = 0x7021,
+		.subvendor   = PCI_ANY_ID, //0x10EE,
+		.subdevice   = PCI_ANY_ID, //PCI_ANY_ID,
+		.driver_data = 1,
 	},
+	{ /* end of list */ }
+};
+
+static struct pci_driver netv_pci_driver = {
+	.name =         "netv-drm",
+	.id_table =     netv_pci_tbl,
+	.probe =        netv_pci_probe,
+	.remove =       netv_pci_remove,
+	.driver.pm =    &netv_pm_ops,
 };
 
 static int __init sdrm_init(void)
 {
-	int ret;
-	struct device_node *np;
-
-	ret = platform_driver_register(&sdrm_simplefb_driver);
-	if (ret)
-		return ret;
-
-	if (IS_ENABLED(CONFIG_OF_ADDRESS) && of_chosen) {
-		for_each_child_of_node(of_chosen, np) {
-			if (of_device_is_compatible(np, "simple-framebuffer"))
-				of_platform_device_create(np, NULL, NULL);
-		}
-	}
-
 	sdrm_fbdev_kickout_init();
-
-	return 0;
+	return drm_pci_init(&sdrm_drm_driver, &netv_pci_driver);
 }
 module_init(sdrm_init);
 
 static void __exit sdrm_exit(void)
 {
 	sdrm_fbdev_kickout_exit();
-	platform_driver_unregister(&sdrm_simplefb_driver);
+	drm_pci_exit(&sdrm_drm_driver, &netv_pci_driver);
 }
 module_exit(sdrm_exit);
 
