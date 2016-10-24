@@ -18,6 +18,38 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
 
+/*
+ * Data-Format for Simple-Framebuffers
+ * @name: unique 0-terminated name that can be used to identify the mode
+ * @red,green,blue: Offsets and sizes of the single RGB parts
+ * @transp: Offset and size of the alpha bits. length=0 means no alpha
+ * @fourcc: 32bit DRM four-CC code (see drm_fourcc.h)
+ */
+struct simplefb_format {
+        const char *name;
+        u32 bits_per_pixel;
+        struct fb_bitfield red;
+        struct fb_bitfield green;
+        struct fb_bitfield blue;
+        struct fb_bitfield transp;
+        u32 fourcc;
+};
+
+//        { "r5g6b5", 16, {11, 5}, {5, 6}, {0, 5}, {0, 0}, DRM_FORMAT_RGB565 },
+//        { "x1r5g5b5", 16, {10, 5}, {5, 5}, {0, 5}, {0, 0}, DRM_FORMAT_XRGB1555 },
+//        { "a1r5g5b5", 16, {10, 5}, {5, 5}, {0, 5}, {15, 1}, DRM_FORMAT_ARGB1555 },
+//        { "x2r10g10b10", 32, {20, 10}, {10, 10}, {0, 10}, {0, 0}, DRM_FORMAT_XRGB2101010 },
+//        { "a2r10g10b10", 32, {20, 10}, {10, 10}, {0, 10}, {30, 2}, DRM_FORMAT_ARGB2101010 },
+
+#define SIMPLEFB_FORMATS \
+{ \
+        { "r8g8b8", 24, {16, 8}, {8, 8}, {0, 8}, {0, 0}, DRM_FORMAT_RGB888 }, \
+        { "a8r8g8b8", 32, {16, 8}, {8, 8}, {0, 8}, {24, 8}, DRM_FORMAT_ARGB8888 }, \
+        { "x8r8g8b8", 32, {16, 8}, {8, 8}, {0, 8}, {0, 0}, DRM_FORMAT_XRGB8888 }, \
+        { "a8b8g8r8", 32, {0, 8}, {8, 8}, {16, 8}, {24, 8}, DRM_FORMAT_ABGR8888 }, \
+}
+
+static struct simplefb_format simplefb_formats[] = SIMPLEFB_FORMATS;
 
 /* ---------------------------------------------------------------------- */
 
@@ -135,11 +167,11 @@ int sdrm_hw_init(struct drm_device *dev, uint32_t flags)
 
 
 /*
-	sdrm->fb_sformat = &simplefb_formats[i];
-	sdrm->fb_format = simplefb_formats[i].fourcc;
-	sdrm->fb_width = mode->width;
-	sdrm->fb_height = mode->height;
-	sdrm->fb_stride = mode->stride;
+	netv->fb_sformat = &simplefb_formats[i];
+	netv->fb_format = simplefb_formats[i].fourcc;
+	netv->fb_width = mode->width;
+	netv->fb_height = mode->height;
+	netv->fb_stride = mode->stride;
 */
 
 	netv->fb_base = addr;
@@ -150,6 +182,13 @@ int sdrm_hw_init(struct drm_device *dev, uint32_t flags)
 		DRM_ERROR("Cannot map framebuffer\n");
 		return -ENOMEM;
 	}
+
+	netv->fb_sformat = &simplefb_formats[0];
+	netv->fb_format = simplefb_formats[0].fourcc;
+	netv->fb_width = 1920;
+	netv->fb_height = 1080;
+	netv->fb_bpp = 24;
+	netv->fb_stride = netv->fb_width * (netv->fb_bpp / 8);
 
 	DRM_INFO("Found NeTV device, ID 0x%x.\n", id);
 	DRM_INFO("Framebuffer size %ld kB @ 0x%lx, @ 0x%lx.\n",
