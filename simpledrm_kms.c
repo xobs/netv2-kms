@@ -19,8 +19,10 @@
 #include "simpledrm.h"
 
 static const uint32_t sdrm_formats[] = {
-	//DRM_FORMAT_RGB565,
+	DRM_FORMAT_RGB888,
+	DRM_FORMAT_BGR888,
 	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_ABGR8888,
 	DRM_FORMAT_XRGB8888,
 };
 
@@ -48,9 +50,16 @@ static int sdrm_conn_get_modes(struct drm_connector *conn)
 	return 1;
 }
 
+static int sdrm_conn_mode_valid(struct drm_connector *connector,
+				struct drm_display_mode *mode)
+{
+	return MODE_OK;
+}
+
 static const struct drm_connector_helper_funcs sdrm_conn_hfuncs = {
 	.get_modes = sdrm_conn_get_modes,
 	.best_encoder = drm_atomic_helper_best_encoder,
+	.mode_valid = sdrm_conn_mode_valid,
 };
 
 static enum drm_connector_status sdrm_conn_detect(struct drm_connector *conn,

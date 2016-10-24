@@ -43,10 +43,10 @@ struct simplefb_format {
 
 #define SIMPLEFB_FORMATS \
 { \
+        { "a8b8g8r8", 32, {0, 8}, {8, 8}, {16, 8}, {24, 8}, DRM_FORMAT_ABGR8888 }, \
+        { "x8r8g8b8", 32, {16, 8}, {8, 8}, {0, 8}, {0, 0}, DRM_FORMAT_XRGB8888 }, \
         { "r8g8b8", 24, {16, 8}, {8, 8}, {0, 8}, {0, 0}, DRM_FORMAT_RGB888 }, \
         { "a8r8g8b8", 32, {16, 8}, {8, 8}, {0, 8}, {24, 8}, DRM_FORMAT_ARGB8888 }, \
-        { "x8r8g8b8", 32, {16, 8}, {8, 8}, {0, 8}, {0, 0}, DRM_FORMAT_XRGB8888 }, \
-        { "a8b8g8r8", 32, {0, 8}, {8, 8}, {16, 8}, {24, 8}, DRM_FORMAT_ABGR8888 }, \
 }
 
 static struct simplefb_format simplefb_formats[] = SIMPLEFB_FORMATS;
@@ -106,7 +106,7 @@ int sdrm_hw_init(struct drm_device *dev, uint32_t flags)
 {
 	struct sdrm_device *netv = dev->dev_private;
 	struct pci_dev *pdev = dev->pdev;
-	unsigned long addr, size, mem, ioaddr, iosize, qext_size;
+	unsigned long addr, size, mem, ioaddr, iosize;
 	u16 id;
 
 #if 0
@@ -185,15 +185,16 @@ int sdrm_hw_init(struct drm_device *dev, uint32_t flags)
 
 	netv->fb_sformat = &simplefb_formats[0];
 	netv->fb_format = simplefb_formats[0].fourcc;
+	netv->fb_bpp = simplefb_formats[0].bits_per_pixel;
 	netv->fb_width = 1920;
 	netv->fb_height = 1080;
-	netv->fb_bpp = 24;
-	netv->fb_stride = netv->fb_width * (netv->fb_bpp / 8);
+	netv->fb_stride = netv->fb_width * 3;//(netv->fb_bpp / 8);
 
 	DRM_INFO("Found NeTV device, ID 0x%x.\n", id);
 	DRM_INFO("Framebuffer size %ld kB @ 0x%lx, @ 0x%lx.\n",
 		 size / 1024, addr,
 		 ioaddr);
+	DRM_INFO("%dx%d @ %d bpp\n", netv->fb_width, netv->fb_height, netv->fb_bpp);
 
 	/*
 	if (netv->mmio && pdev->revision >= 2) {
