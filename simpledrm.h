@@ -35,15 +35,6 @@ struct sdrm_device {
 	unsigned long fb_base;
 	unsigned long fb_size;
 	void *fb_map;
-
-#if defined CONFIG_OF && defined CONFIG_COMMON_CLK
-	unsigned int clk_count;
-	struct clk **clks;
-#endif
-#if defined CONFIG_OF && defined CONFIG_REGULATOR
-	u32 regulator_count;
-	struct regulator **regulators;
-#endif
 };
 
 void sdrm_lastclose(struct drm_device *ddev);
