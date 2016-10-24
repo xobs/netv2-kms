@@ -125,12 +125,17 @@ static struct drm_driver sdrm_drm_driver = {
 /* pm interface                                                           */
 
 #ifdef CONFIG_PM_SLEEP
+void netv_fbdev_suspend(struct drm_device *drm_dev);
+void netv_fbdev_resume(struct drm_device *drm_dev);
+
 static int netv_pm_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
-	struct sdrm_device *netv = drm_dev->dev_private;
 
+#ifdef CONFIG_FB
+	//netv_fbdev_suspend(drm_dev);
+#endif
 /*
 	drm_kms_helper_poll_disable(drm_dev);
 
@@ -148,8 +153,10 @@ static int netv_pm_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
-	struct sdrm_device *netv = drm_dev->dev_private;
 
+#ifdef CONFIG_FB
+	//netv_fbdev_resume(drm_dev);
+#endif
 /*
 	drm_helper_resume_force_mode(drm_dev);
 

@@ -44,8 +44,8 @@ struct simplefb_format {
 #define SIMPLEFB_FORMATS \
 { \
         { "a8b8g8r8", 32, {0, 8}, {8, 8}, {16, 8}, {24, 8}, DRM_FORMAT_ABGR8888 }, \
-        { "x8r8g8b8", 32, {16, 8}, {8, 8}, {0, 8}, {0, 0}, DRM_FORMAT_XRGB8888 }, \
         { "r8g8b8", 24, {16, 8}, {8, 8}, {0, 8}, {0, 0}, DRM_FORMAT_RGB888 }, \
+        { "x8r8g8b8", 32, {16, 8}, {8, 8}, {0, 8}, {0, 0}, DRM_FORMAT_XRGB8888 }, \
         { "a8r8g8b8", 32, {16, 8}, {8, 8}, {0, 8}, {24, 8}, DRM_FORMAT_ARGB8888 }, \
 }
 
@@ -188,7 +188,7 @@ int sdrm_hw_init(struct drm_device *dev, uint32_t flags)
 	netv->fb_bpp = simplefb_formats[0].bits_per_pixel;
 	netv->fb_width = 1920;
 	netv->fb_height = 1080;
-	netv->fb_stride = netv->fb_width * 3;//(netv->fb_bpp / 8);
+	netv->fb_stride = netv->fb_width * (netv->fb_bpp / 8);
 
 	DRM_INFO("Found NeTV device, ID 0x%x.\n", id);
 	DRM_INFO("Framebuffer size %ld kB @ 0x%lx, @ 0x%lx.\n",

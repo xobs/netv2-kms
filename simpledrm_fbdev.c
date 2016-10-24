@@ -188,6 +188,40 @@ static void sdrm_fbdev_set_suspend(struct fb_info *fbi, int state)
 	console_unlock();
 }
 
+void netv_fbdev_resume(struct drm_device *drm_dev)
+{
+	struct sdrm_device *netv = drm_dev->dev_private;
+	struct sdrm_fbdev *fbdev = netv->fbdev;
+
+	drm_kms_helper_poll_disable(drm_dev);
+
+/*
+	if (fbdev->fb.initialized) {
+		console_lock();
+		drm_fb_helper_set_suspend(&fbdev->fb.helper, 1);
+		console_unlock();
+	}
+*/
+}
+
+void netv_fbdev_suspend(struct drm_device *drm_dev)
+{
+	struct sdrm_device *netv = drm_dev->dev_private;
+	struct sdrm_fbdev *fbdev = netv->fbdev;
+
+	drm_helper_resume_force_mode(drm_dev);
+
+/*
+	if (fbdev->fb.initialized) {
+		console_lock();
+		drm_fb_helper_set_suspend(&fbdev->fb.helper, 0);
+		console_unlock();
+	}
+*/
+
+	drm_kms_helper_poll_enable(drm_dev);
+}
+
 /*
  * Since fbdev is using the native framebuffer, fbcon has to be disabled
  * when the drm stack is used.
