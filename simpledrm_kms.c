@@ -75,7 +75,7 @@ static enum drm_connector_status sdrm_conn_detect(struct drm_connector *conn,
 }
 
 static const struct drm_connector_funcs sdrm_conn_ops = {
-	.dpms = drm_atomic_helper_connector_dpms,
+	.dpms = drm_helper_connector_dpms,
 	.reset = drm_atomic_helper_connector_reset,
 	.detect = sdrm_conn_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,

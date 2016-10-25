@@ -30,9 +30,46 @@
  * encoder drivers.
  */
 
+static void netv_encoder_mode_set(struct drm_encoder *encoder,
+				  struct drm_display_mode *mode,
+				  struct drm_display_mode *adjusted_mode)
+{
+}
+
+static void netv_encoder_dpms(struct drm_encoder *encoder, int state)
+{
+}
+
+static void netv_encoder_prepare(struct drm_encoder *encoder)
+{
+}
+
+static void netv_encoder_commit(struct drm_encoder *encoder)
+{
+}
+
+static const struct drm_encoder_helper_funcs netv_kms_encoder_helper_funcs = {
+	.dpms = netv_encoder_dpms,
+	.mode_set = netv_encoder_mode_set,
+	.prepare = netv_encoder_prepare,
+	.commit = netv_encoder_commit,
+};
+
 static const struct drm_encoder_funcs netv_kms_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
+
+static void netv_kms_crtc_dpms(struct drm_crtc *crtc, int mode)
+{
+	switch (mode) {
+	case DRM_MODE_DPMS_ON:
+	case DRM_MODE_DPMS_STANDBY:
+	case DRM_MODE_DPMS_SUSPEND:
+	case DRM_MODE_DPMS_OFF:
+	default:
+		return;
+	}
+}
 
 static void netv_kms_crtc_enable(struct drm_crtc *crtc)
 {
@@ -57,6 +94,7 @@ static void netv_kms_crtc_disable(struct drm_crtc *crtc)
 }
 
 static const struct drm_crtc_helper_funcs netv_kms_crtc_helper_funcs = {
+	.dpms = netv_kms_crtc_dpms,
 	.disable = netv_kms_crtc_disable,
 	.enable = netv_kms_crtc_enable,
 };
@@ -197,6 +235,7 @@ int netv_simple_display_pipe_init(struct drm_device *dev,
 			       DRM_MODE_ENCODER_NONE, NULL);
 	if (ret)
 		return ret;
+	drm_encoder_helper_add(encoder, &netv_kms_encoder_helper_funcs);
 
 	return drm_mode_connector_attach_encoder(connector, encoder);
 }
