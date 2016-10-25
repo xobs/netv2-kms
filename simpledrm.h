@@ -12,17 +12,30 @@
 #define SDRM_DRV_H
 
 #include <drm/drm_crtc.h>
+#include <drm/drm_crtc_helper.h>
+#include <drm/drm_plane_helper.h>
 #include <drm/drm_gem.h>
-#include <drm/drm_simple_kms_helper.h>
 
 struct simplefb_format;
-struct regulator;
-struct clk;
+struct sdrm_device;
+
+struct netv_display_pipe_funcs {
+	void (*enable)(struct sdrm_device *netv,
+		       struct drm_crtc_state *crtc_state);
+	void (*disable)(struct sdrm_device *netv);
+	int (*check)(struct sdrm_device *netv,
+		     struct drm_plane_state *plane_state,
+		     struct drm_crtc_state *crtc_state);
+	void (*update)(struct sdrm_device *netv,
+		       struct drm_plane_state *plane_state);
+};
 
 struct sdrm_device {
 	struct drm_device *ddev;
-	struct drm_simple_display_pipe pipe;
-	struct drm_connector conn;
+	struct drm_crtc crtc;
+	struct drm_encoder encoder;
+	struct drm_plane plane;
+	struct drm_connector connector;
 	struct sdrm_fbdev *fbdev;
 
 	/* framebuffer information */
@@ -35,6 +48,8 @@ struct sdrm_device {
 	unsigned long fb_base;
 	unsigned long fb_size;
 	void *fb_map;
+
+	const struct netv_display_pipe_funcs *funcs;
 };
 
 void sdrm_lastclose(struct drm_device *ddev);
@@ -76,6 +91,12 @@ struct sdrm_framebuffer {
 	struct drm_framebuffer base;
 	struct sdrm_gem_object *obj;
 };
+
+int netv_simple_display_pipe_init(struct drm_device *dev,
+                        struct sdrm_device *pipe,
+                        const struct netv_display_pipe_funcs *funcs,
+                        const uint32_t *formats, unsigned int format_count,
+                        struct drm_connector *connector);
 
 #define to_sdrm_fb(x) container_of(x, struct sdrm_framebuffer, base)
 

@@ -84,12 +84,6 @@ static const struct drm_connector_funcs sdrm_conn_ops = {
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
-static inline struct sdrm_device *
-pipe_to_sdrm(struct drm_simple_display_pipe *pipe)
-{
-	return container_of(pipe, struct sdrm_device, pipe);
-}
-
 static void sdrm_crtc_send_vblank_event(struct drm_crtc *crtc)
 {
 	if (crtc->state && crtc->state->event) {
@@ -100,36 +94,35 @@ static void sdrm_crtc_send_vblank_event(struct drm_crtc *crtc)
 	}
 }
 
-void sdrm_display_pipe_update(struct drm_simple_display_pipe *pipe,
+void netv_display_pipe_update(struct sdrm_device *netv,
 			      struct drm_plane_state *plane_state)
 {
-	struct drm_framebuffer *fb = pipe->plane.state->fb;
-	struct sdrm_device *sdrm = pipe_to_sdrm(pipe);
+	struct drm_framebuffer *fb = netv->plane.state->fb;
 
-	sdrm_crtc_send_vblank_event(&pipe->crtc);
-	sdrm_fbdev_display_pipe_update(sdrm, fb);
+	sdrm_crtc_send_vblank_event(&netv->crtc);
+	sdrm_fbdev_display_pipe_update(netv, fb);
 
 	if (fb && fb->funcs->dirty) {
-		pipe->plane.fb = fb;
-		sdrm_dirty_all_locked(sdrm);
+		netv->plane.fb = fb;
+		sdrm_dirty_all_locked(netv);
 	}
 }
 
-static void sdrm_display_pipe_enable(struct drm_simple_display_pipe *pipe,
+static void netv_display_pipe_enable(struct sdrm_device *netv,
 				     struct drm_crtc_state *crtc_state)
 {
-	sdrm_crtc_send_vblank_event(&pipe->crtc);
+	sdrm_crtc_send_vblank_event(&netv->crtc);
 }
 
-static void sdrm_display_pipe_disable(struct drm_simple_display_pipe *pipe)
+static void netv_display_pipe_disable(struct sdrm_device *netv)
 {
-	sdrm_crtc_send_vblank_event(&pipe->crtc);
+	sdrm_crtc_send_vblank_event(&netv->crtc);
 }
 
-static const struct drm_simple_display_pipe_funcs sdrm_pipe_funcs = {
-	.update = sdrm_display_pipe_update,
-	.enable = sdrm_display_pipe_enable,
-	.disable = sdrm_display_pipe_disable,
+static const struct netv_display_pipe_funcs sdrm_pipe_funcs = {
+	.update = netv_display_pipe_update,
+	.enable = netv_display_pipe_enable,
+	.disable = netv_display_pipe_disable,
 };
 
 static int sdrm_fb_create_handle(struct drm_framebuffer *fb,
@@ -232,7 +225,7 @@ static const struct drm_mode_config_funcs sdrm_mode_config_ops = {
 
 int sdrm_drm_modeset_init(struct sdrm_device *sdrm)
 {
-	struct drm_connector *conn = &sdrm->conn;
+	struct drm_connector *conn = &sdrm->connector;
 	struct drm_device *ddev = sdrm->ddev;
 	int ret;
 
@@ -258,7 +251,7 @@ int sdrm_drm_modeset_init(struct sdrm_device *sdrm)
 				   ddev->mode_config.dirty_info_property,
 				   DRM_MODE_DIRTY_ON);
 
-	ret = drm_simple_display_pipe_init(ddev, &sdrm->pipe, &sdrm_pipe_funcs,
+	ret = netv_simple_display_pipe_init(ddev, sdrm, &sdrm_pipe_funcs,
 					   sdrm_formats,
 					   ARRAY_SIZE(sdrm_formats), conn);
 	if (ret)

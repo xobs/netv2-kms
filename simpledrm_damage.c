@@ -242,7 +242,7 @@ int sdrm_dirty(struct drm_framebuffer *fb,
 
 	drm_modeset_lock_all(ddev);
 
-	if (sdrm->pipe.plane.fb != fb) {
+	if (sdrm->plane.fb != fb) {
 		r = 0;
 		goto unlock;
 	}
@@ -274,7 +274,7 @@ int sdrm_dirty_all_locked(struct sdrm_device *sdrm)
 	struct sdrm_framebuffer *sfb;
 	int r;
 
-	fb = sdrm->pipe.plane.fb;
+	fb = sdrm->plane.fb;
 	if (!fb)
 		return 0;
 
