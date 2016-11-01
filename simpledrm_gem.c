@@ -18,6 +18,7 @@
 
 #include "simpledrm.h"
 
+
 int sdrm_gem_get_pages(struct sdrm_gem_object *obj)
 {
 	size_t num, i;
@@ -104,8 +105,8 @@ void sdrm_gem_free_object(struct drm_gem_object *gobj)
 		/* kill all user-space mappings */
 		drm_vma_node_unmap(&gobj->vma_node,
 				   ddev->anon_inode->i_mapping);
-		sdrm_gem_put_pages(obj);
 	}
+	sdrm_gem_put_pages(obj);
 
 	if (gobj->import_attach)
 		drm_prime_gem_destroy(gobj, obj->sg);
@@ -176,6 +177,20 @@ out_unlock:
 	return r;
 }
 
+static void sdma_vm_close(struct vm_area_struct *vma)
+{
+	struct sdrm_gem_object *obj;
+
+	obj = vma->vm_private_data;
+	sdrm_gem_put_pages(obj);
+
+	vma->vm_private_data = NULL;
+}
+
+static const struct vm_operations_struct sdrm_gem_vm_ops = {
+	.close = sdma_vm_close,
+};
+
 int sdrm_drm_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	struct drm_file *priv = filp->private_data;
@@ -214,6 +229,9 @@ int sdrm_drm_mmap(struct file *filp, struct vm_area_struct *vma)
 
 	vma->vm_flags |= VM_DONTEXPAND;
 	vma->vm_page_prot = pgprot_writecombine(vm_get_page_prot(vma->vm_flags));
+
+	vma->vm_ops = &sdrm_gem_vm_ops;
+	vma->vm_private_data = obj;
 
 	num = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
 	for (i = 0; i < num; ++i) {
